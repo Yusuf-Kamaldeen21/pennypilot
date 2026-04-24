@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pennypilot — Financial Planning System</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap"
+    rel="stylesheet" />
+  <!-- FontAwesome CDN -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <!-- Icons8 Line Awesome CDN -->
+  <link rel="stylesheet" href="https://maxst.icons8.com/vue-static/landings/line-awesome/line-awesome/1.3.0/css/line-awesome.min.css">
+</head>
+
+<body>
+
+
+  <!-- ===== MAIN WRAPPER ===== -->
+  <div class="main-wrapper">
+
+    <!-- TOP NAV -->
+    <header class="topnav">
+      <div class="topnav-left">
+        <div class="avatar nav-item" id="menuToggle" aria-label="User Profile" role="button" tabindex="0"
+          data-page="profile">AJ</div>
+        <div class="greeting-text">
+          <span class="greeting-time" id="greetingTime">Good Morning,</span>
+          <span class="greeting-name" id="greetingName">AJ Doe</span>
+        </div>
+      </div>
+      <div class="topnav-right">
+        <button class="icon-btn nav-item" data-page="support" aria-label="Support Center">
+          <span class="notif-icon"><i class="las la-headset"></i></span>
+        </button>
+        <button class="icon-btn notif-btn nav-item" data-page="alerts" aria-label="Notifications">
+          <span class="notif-icon"><i class="las la-bell"></i></span>
+          <span class="notif-dot"></span>
+        </button>
+      </div>
+    </header>
+
+    <!-- ===== CONTENT AREA ===== -->
+    <main class="content" id="mainContent">
+
+      <!-- ========== PAGE: HOME ========== -->
+      <section class="page active" id="page-home">
+
+        <!-- Alert Banner -->
+        <div class="alert-banner warning" id="alertBanner">
+          <span class="alert-icon">⚠</span>
+          <span>You may run short next week — consider reducing discretionary spending.</span>
+          <button class="alert-dismiss" onclick="this.parentElement.style.display='none'">✕</button>
+        </div>
+
+        <!-- Top Cards Grid -->
+        <div class="cards-grid cards-grid--top">
+
+          <!-- Balance Card -->
+          <div class="card card--balance">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 4px;">
+              <span class="card-label" style="margin-bottom: 0;">Available Balance</span>
+              <div class="status-badge safe" id="financialStatus"
+                style="margin-top: 0; font-size: 10px; padding: 2px 8px;">● Safe</div>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <div class="card-amount" id="dashBalance" data-amount="284500" style="margin-bottom: 0; line-height: 1;">$
+                284,500</div>
+              <button id="toggleBalanceBtn" style="color:var(--text-secondary); font-size:18px;">👁</button>
+            </div>
+          </div>
+
+          <!-- Upcoming Cashflow -->
+          <div class="card">
+            <div class="card-label">Upcoming Cashflow</div>
+            <div style="display:flex; justify-content:space-between; margin-bottom: 8px;">
+              <div class="card-amount" style="font-size: 14px; font-weight: 500; color: var(--green);"
+                id="upcomingIncAmt">+ $ 0</div>
+              <div class="card-amount card-amount--warn" style="font-size: 14px; font-weight: 500;" id="upcomingExpAmt">
+                - $ 0</div>
+            </div>
+            <div class="card-sub">Next 7 days</div>
+            <ul class="upcoming-list" id="dashUpcomingList">
+            </ul>
+          </div>
+
+          <!-- Quick Stats -->
+          <div class="card">
+            <div class="card-label">This Month</div>
+            <div class="quick-stats">
+              <div class="stat-row">
+                <span class="stat-label">Income</span>
+                <span class="stat-value income">+ $ 450,000</span>
+              </div>
+              <div class="stat-row">
+                <span class="stat-label">Expenses</span>
+                <span class="stat-value expense">− $ 165,500</span>
+              </div>
+              <div class="stat-row stat-row--total">
+                <span class="stat-label">Net</span>
+                <span class="stat-value">$ 284,500</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Chart Section -->
+        <div class="card chart-card">
+          <div class="card-header-row">
+            <span class="card-label">Income vs Expenses — Last 6 Weeks</span>
+            <span class="chart-legend">
+              <span class="legend-dot" style="background:var(--accent)"></span> Income
+              <span class="legend-dot" style="background:#f87171"></span> Expenses
+            </span>
+          </div>
+          <div class="chart-container">
+            <canvas id="dashChart" width="600" height="200"></canvas>
+          </div>
+        </div>
+
+        <!-- Savings Snapshot -->
+        <div class="card">
+          <div class="card-label">Savings Snapshot</div>
+          <div class="envelope-mini-list" id="dashEnvelopesList">
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ========== PAGE: INCOME ========== -->
+      <section class="page" id="page-income">
+
+        <div class="card form-card">
+          <div class="card-label">Log New Income</div>
+          <form id="incomeForm" class="app-form" onsubmit="return false;">
+            <div class="form-row">
+              <div class="form-group">
+                <label for="incomeAmount">Amount ($)</label>
+                <input type="number" id="incomeAmount" placeholder="e.g. 150000" min="0" />
+              </div>
+              <div class="form-group">
+                <label for="incomeSource">Source</label>
+                <select id="incomeSource">
+                  <option value="">Select source</option>
+                  <option>Freelance / Contract</option>
+                  <option>Client Payment</option>
+                  <option>Business Revenue</option>
+                  <option>Rental Income</option>
+                  <option>Dividends</option>
+                  <option>Other</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="incomeDate">Date</label>
+                <input type="date" id="incomeDate" />
+              </div>
+              <div class="form-group">
+                <label for="incomeNotes">Notes (optional)</label>
+                <input type="text" id="incomeNotes" placeholder="e.g. Project X milestone" />
+              </div>
+            </div>
+            <button type="button" class="btn btn--primary" onclick="addIncome()">+ Add Income</button>
+          </form>
+        </div>
+
+        <div class="card">
+          <div class="card-label">Income History</div>
+          <div class="table-wrapper">
+            <table class="data-table" id="incomeTable">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Source</th>
+                  <th>Amount</th>
+                  <th>Notes</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="incomeTableBody">
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ========== PAGE: EXPENSES ========== -->
+      <section class="page" id="page-expenses">
+
+        <div class="card form-card">
+          <div class="card-label">Add Expense</div>
+          <form class="app-form" onsubmit="return false;">
+            <div class="form-row">
+              <div class="form-group">
+                <label for="expenseName">Expense Name</label>
+                <input type="text" id="expenseName" placeholder="e.g. Rent" />
+              </div>
+              <div class="form-group">
+                <label for="expenseAmount">Amount ($)</label>
+                <input type="number" id="expenseAmount" placeholder="e.g. 60000" />
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="expenseDue">Due Date</label>
+                <input type="date" id="expenseDue" />
+              </div>
+              <div class="form-group">
+                <label for="expenseCategory">Category</label>
+                <select id="expenseCategory">
+                  <option>Housing</option>
+                  <option>Food</option>
+                  <option>Transport</option>
+                  <option>Utilities</option>
+                  <option>Subscriptions</option>
+                  <option>Healthcare</option>
+                  <option>Other</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-row form-row--check">
+              <label class="toggle-label">
+                <input type="checkbox" id="isRecurring" class="toggle-input" />
+                <span class="toggle-switch"></span>
+                Recurring expense
+              </label>
+            </div>
+            <button type="button" class="btn btn--primary" onclick="addExpense()">+ Add Expense</button>
+          </form>
+        </div>
+
+        <!-- Expense Timeline -->
+        <div class="card">
+          <div class="card-label">Upcoming Expenses</div>
+          <div class="expense-list" id="expenseList">
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ========== PAGE: SAVINGS ENVELOPES ========== -->
+      <section class="page" id="page-savings">
+
+        <div class="page-actions">
+          <button class="btn btn--primary" onclick="openEnvelopeModal()">+ Create Envelope</button>
+        </div>
+
+        <div class="envelopes-grid" id="envelopesGrid">
+        </div>
+
+        <!-- Create Envelope Modal -->
+        <div class="modal-overlay" id="envelopeModal">
+          <div class="modal">
+            <div class="modal-header">
+              <span class="card-label">New Savings Envelope</span>
+              <button class="modal-close" onclick="closeEnvelopeModal()">✕</button>
+            </div>
+            <form class="app-form" onsubmit="return false;">
+              <div style="display: flex; gap: 12px; margin-bottom: -4px;">
+                <div class="form-group" style="flex: 2;">
+                  <label for="envName">Envelope Name</label>
+                  <input type="text" id="envName" placeholder="e.g. Car Fund" />
+                </div>
+                <div class="form-group" style="flex: 1;">
+                  <label for="envIcon">Icon</label>
+                  <select id="envIcon">
+                    <option value="🏦">🏦 Bank</option>
+                    <option value="🎯">🎯 Goal</option>
+                    <option value="🏠">🏠 Home</option>
+                    <option value="🚗">🚗 Car</option>
+                    <option value="📱">📱 Tech</option>
+                    <option value="💊">💊 Health</option>
+                    <option value="🎓">🎓 Education</option>
+                    <option value="💼">💼 Business</option>
+                  </select>
+                </div>
+              </div>
+              <div style="display: flex; gap: 12px; margin-bottom: 2px;">
+                <div class="form-group" style="flex: 1;">
+                  <label for="envTarget">Target Amount ($)</label>
+                  <input type="number" id="envTarget" placeholder="e.g. 500000" />
+                </div>
+                <div class="form-group" style="flex: 1;">
+                  <label for="envInitial">Initial Amount ($)</label>
+                  <input type="number" id="envInitial" placeholder="e.g. 0" />
+                </div>
+              </div>
+              <div style="display: flex; gap: 12px;">
+                <button type="button" class="btn btn--ghost" style="flex: 1;" onclick="closeEnvelopeModal()">Cancel</button>
+                <button type="button" class="btn btn--primary" style="flex: 1;" onclick="createEnvelope()">Create</button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ========== PAGE: ALERTS ========== -->
+      <section class="page" id="page-alerts">
+
+        <div class="alerts-list">
+
+          <div class="alert-card alert-card--warning">
+            <div class="alert-card-icon">⚠</div>
+            <div class="alert-card-body">
+              <div class="alert-card-title">Low Balance Warning</div>
+              <div class="alert-card-msg">Your balance may not cover next week's expenses. Review your spending plan.
+              </div>
+              <div class="alert-card-time">Today, 9:12 AM</div>
+            </div>
+            <button class="alert-dismiss-card" onclick="dismissAlert(this)">✕</button>
+          </div>
+
+          <div class="alert-card alert-card--warning">
+            <div class="alert-card-icon">⚠</div>
+            <div class="alert-card-body">
+              <div class="alert-card-title">Recurring Expense Due Soon</div>
+              <div class="alert-card-msg">Rent of $60,000 is due in 8 days. Ensure funds are available.</div>
+              <div class="alert-card-time">Yesterday, 11:00 AM</div>
+            </div>
+            <button class="alert-dismiss-card" onclick="dismissAlert(this)">✕</button>
+          </div>
+
+          <div class="alert-card alert-card--info">
+            <div class="alert-card-icon">ℹ</div>
+            <div class="alert-card-body">
+              <div class="alert-card-title">Income Trend</div>
+              <div class="alert-card-msg">Your income has been irregular over the past 4 weeks. Consider setting a
+                minimum monthly target.</div>
+              <div class="alert-card-time">Mon, Apr 21</div>
+            </div>
+            <button class="alert-dismiss-card" onclick="dismissAlert(this)">✕</button>
+          </div>
+
+          <div class="alert-card alert-card--success">
+            <div class="alert-card-icon">✓</div>
+            <div class="alert-card-body">
+              <div class="alert-card-title">Savings Goal Progress</div>
+              <div class="alert-card-msg">You're 40% toward your Emergency Fund goal. Keep it up!</div>
+              <div class="alert-card-time">Sun, Apr 20</div>
+            </div>
+            <button class="alert-dismiss-card" onclick="dismissAlert(this)">✕</button>
+          </div>
+
+          <div class="alert-card alert-card--success">
+            <div class="alert-card-icon">✓</div>
+            <div class="alert-card-body">
+              <div class="alert-card-title">Income Logged</div>
+              <div class="alert-card-msg">$200,000 from Freelance was successfully logged for April 15.</div>
+              <div class="alert-card-time">Tue, Apr 15</div>
+            </div>
+            <button class="alert-dismiss-card" onclick="dismissAlert(this)">✕</button>
+          </div>
+
+        </div>
+
+      </section>
+
+      <!-- ========== PAGE: WEEKLY SUMMARY ========== -->
+      <section class="page" id="page-summary">
+
+        <div class="cards-grid cards-grid--top">
+          <div class="card card--income-sum">
+            <div class="card-label">Total Income</div>
+            <div class="card-amount" id="summaryTotalIncome">$ 0</div>
+            <div class="card-sub trend-up" id="summaryIncomeTrend">↑ 0% vs last week</div>
+          </div>
+          <div class="card card--expense-sum">
+            <div class="card-label">Total Expenses</div>
+            <div class="card-amount card-amount--warn" id="summaryTotalExpense">$ 0</div>
+            <div class="card-sub trend-down" id="summaryExpenseTrend">↓ 0% vs last week</div>
+          </div>
+          <div class="card">
+            <div class="card-label">Net Balance</div>
+            <div class="card-amount" id="summaryNetBalance">$ 0</div>
+            <div class="card-sub trend-up" id="summaryNetTrend">↑ Good standing</div>
+          </div>
+        </div>
+
+        <!-- Weekly Chart -->
+        <div class="card chart-card">
+          <div class="card-label">Weekly Breakdown (Mon–Sun)</div>
+          <div class="chart-container">
+            <canvas id="weeklyChart" width="600" height="200"></canvas>
+          </div>
+        </div>
+
+        <!-- Plain Language Insights -->
+        <div class="card">
+          <div class="card-label">AI Insights</div>
+          <ul class="insights-list" id="summaryInsightsList">
+          </ul>
+        </div>
+
+      </section>
+
+      <!-- ========== PAGE: BUDGET ========== -->
+      <section class="page" id="page-budget">
+        <div class="card">
+          <div class="card-label">Budget Planner</div>
+          <p style="color: var(--text-secondary); font-size: 14px;">Budget planning features coming soon.</p>
+        </div>
+      </section>
+
+      <!-- ========== PAGE: SUPPORT ========== -->
+      <section class="page" id="page-support">
+        <div class="card">
+          <div class="card-label">Support Center</div>
+          <p style="color: var(--text-secondary); font-size: 14px;">Contact support or view FAQs here.</p>
+        </div>
+      </section>
+
+      <!-- ========== PAGE: PROFILE ========== -->
+      <section class="page" id="page-profile">
+        <div class="profile-header card">
+          <div class="profile-image-wrapper">
+            <div class="avatar-large" id="profileAvatar">AJ</div>
+            <label class="profile-image-upload" for="profileImageInput">
+              <span>📷</span>
+              <input type="file" id="profileImageInput" accept="image/*" style="display:none;">
+            </label>
+          </div>
+          <h2 class="profile-display-name" id="profileDisplayName">User Fullname</h2>
+        </div>
+
+        <div class="card form-card">
+          <div class="card-label">Profile Details</div>
+          <form class="app-form" onsubmit="return false;">
+            <div class="form-row">
+              <div class="form-group">
+                <label for="profileFullName">Full Name</label>
+                <input type="text" id="profileFullName" readonly />
+              </div>
+              <div class="form-group">
+                <label for="profileNickname">Nickname</label>
+                <input type="text" id="profileNickname" readonly />
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="profileMobile">Mobile Number</label>
+                <input type="tel" id="profileMobile" readonly />
+              </div>
+              <div class="form-group">
+                <label for="profileEmail">Email</label>
+                <input type="email" id="profileEmail" readonly />
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="profileGender">Gender</label>
+                <select id="profileGender" disabled>
+                  <option value="">Select Gender</option>
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
+                  <option value="Other">Other</option>
+                  <option value="Prefer not to say">Prefer not to say</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="profileDob">Date of Birth</label>
+                <input type="date" id="profileDob" readonly />
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group" style="width: 100%;">
+                <label for="profileAddress">Address</label>
+                <input type="text" id="profileAddress" readonly />
+              </div>
+            </div>
+          </form>
+        </div>
+
+        <div class="card form-card" style="margin-top: 16px;">
+          <div class="card-label">App Settings</div>
+          <form class="app-form" onsubmit="return false;">
+            <div class="form-row">
+              <div class="form-group">
+                <label for="settingTheme">Display Theme</label>
+                <select id="settingTheme" onchange="updateSettings()">
+                  <option value="dark">Dark Mode</option>
+                  <option value="light">Light Mode</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="settingCurrency">Currency Symbol</label>
+                <select id="settingCurrency" onchange="updateSettings()">
+                  <option value="$">Dollar ($)</option>
+                  <option value="€">Euro (€)</option>
+                  <option value="£">Pound (£)</option>
+                  <option value="₦">Naira (₦)</option>
+                  <option value="¥">Yen (¥)</option>
+                </select>
+              </div>
+            </div>
+          </form>
+        </div>
+
+        <div style="margin-top: 24px; padding-bottom: 24px;">
+          <button class="btn btn--danger"
+            style="width: 100%; padding: 14px; font-size: 15px; font-weight: 600; justify-content: center; border-radius: var(--radius-sm); border: 1px solid rgba(248,113,113,0.3); background: rgba(248,113,113,0.05);"
+            onclick="handleLogout()">Log Out</button>
+        </div>
+
+      </section>
+
+    </main>
+
+    <!-- BOTTOM NAV -->
+    <nav class="bottom-nav" id="bottomNav">
+      <a href="#" class="nav-item active" data-page="home">
+        <span class="nav-icon"><i class="las la-home"></i></span>
+        <span class="nav-label">Home</span>
+      </a>
+      <a href="#" class="nav-item" data-page="income">
+        <span class="nav-icon">↓</span>
+        <span class="nav-label">Income</span>
+      </a>
+      <a href="#" class="nav-item" data-page="expenses">
+        <span class="nav-icon">↑</span>
+        <span class="nav-label">Expenses</span>
+      </a>
+      <a href="#" class="nav-item" data-page="savings">
+        <span class="nav-icon"><i class="fa-solid fa-piggy-bank"></i></span>
+        <span class="nav-label">Savings</span>
+      </a>
+      <a href="#" class="nav-item" data-page="budget">
+        <span class="nav-icon"><i class="las la-chart-pie"></i></span>
+        <span class="nav-label">Budget</span>
+      </a>
+      <a href="#" class="nav-item" data-page="summary">
+        <span class="nav-icon">≋</span>
+        <span class="nav-label">Summary</span>
+      </a>
+    </nav>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+
+</html>
