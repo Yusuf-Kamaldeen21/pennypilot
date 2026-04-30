@@ -1,5 +1,5 @@
 /* =============================================
-   FlowFund — Financial Planning System
+   Pennypilot — Financial Planning System
    script.js
    ============================================= */
 
@@ -766,7 +766,7 @@ function drawDashChart() {
     ctx.beginPath(); ctx.moveTo(padding.left, y); ctx.lineTo(W - padding.right, y); ctx.stroke();
   }
 
-  ctx.fillStyle = '#6B7280';
+  ctx.fillStyle = '#d9d9d9';
   ctx.font = '11px DM Sans, sans-serif';
   ctx.textAlign = 'right';
   for (let i = 0; i <= 4; i++) {
@@ -789,7 +789,7 @@ function drawDashChart() {
     ctx.fillStyle = 'rgba(248, 113, 113, 0.7)';
     roundRect(ctx, startX + bW + 3, padding.top + chartH - expH, bW, expH, 3);
 
-    ctx.fillStyle = '#6B7280';
+    ctx.fillStyle = '#d9d9d9';
     ctx.font = '11px DM Sans, sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText(label, x + barWidth / 2, H - padding.bottom + 16);
