@@ -9,32 +9,18 @@
 
 let state = {
   hideBalance: false,
-  incomes: [
-    // Mock data for initial view
-    { id: 'inc1', amount: 200000, source: 'Freelance / Contract', date: '2025-04-15', notes: 'Brand identity project' },
-    { id: 'inc2', amount: 150000, source: 'Client Payment', date: '2025-04-08', notes: 'Website redesign' },
-    { id: 'inc3', amount: 100000, source: 'Business Revenue', date: '2025-04-01', notes: 'Monthly retainer' }
-  ],
-  expenses: [
-    { id: 'exp1', name: 'Rent', amount: 60000, date: '2025-04-30', category: 'Housing', recurring: true, isPaid: false },
-    { id: 'exp2', name: 'Data Subscription', amount: 12000, date: '2025-04-25', category: 'Subscriptions', recurring: true, isPaid: false },
-    { id: 'exp3', name: 'Utilities', amount: 25000, date: '2025-04-28', category: 'Utilities', recurring: false, isPaid: false },
-    { id: 'exp4', name: 'Groceries', amount: 30000, date: '2025-04-10', category: 'Food', recurring: false, isPaid: true } // A paid expense
-  ],
-  envelopes: [
-    { id: 'env1', name: 'Emergency Fund', target: 200000, current: 80000, icon: '🛡' },
-    { id: 'env2', name: 'Equipment Upgrade', target: 150000, current: 55000, icon: '💻' },
-    { id: 'env3', name: 'Vacation', target: 100000, current: 30000, icon: '✈' }
-  ],
+  incomes: [],
+  expenses: [],
+  envelopes: [],
   userProfile: {
     image: '',
-    fullName: 'AJ Doe',
-    nickname: 'AJ',
-    mobile: '+234 800 000 0000',
-    email: 'aj@example.com',
-    gender: 'Prefer not to say',
-    dob: '1990-01-01',
-    address: 'Lagos, Nigeria'
+    fullName: '',
+    nickname: '',
+    mobile: '',
+    email: '',
+    gender: '',
+    dob: '',
+    address: ''
   },
   settings: {
     theme: 'dark',
@@ -83,6 +69,28 @@ function generateId() {
   return Math.random().toString(36).substr(2, 9);
 }
 
+function getIconHtml(icon) {
+  const mapping = {
+    '🏦': 'la-university',
+    '🎯': 'la-bullseye',
+    '🏠': 'la-home',
+    '🚗': 'la-car',
+    '📱': 'la-mobile',
+    '💊': 'la-medkit',
+    '🎓': 'la-graduation-cap',
+    '💼': 'la-briefcase',
+    'star': 'la-star',
+    'warning': 'la-exclamation-triangle',
+    'info': 'la-info-circle',
+    'success': 'la-check-circle',
+    'trash': 'la-trash-alt',
+    'check': 'la-check-circle',
+    'chart': 'la-chart-bar'
+  };
+  const iconClass = mapping[icon] || icon || 'la-question-circle';
+  return `<i class="las ${iconClass}"></i>`;
+}
+
 // =============================================
 // NAVIGATION
 // =============================================
@@ -105,7 +113,7 @@ const pageTitles = {
 
 navItems.forEach(item => {
   item.addEventListener('click', (e) => {
-    if(item.tagName === 'A') e.preventDefault();
+    if (item.tagName === 'A') e.preventDefault();
     const target = item.getAttribute('data-page');
 
     navItems.forEach(n => n.classList.remove('active'));
@@ -116,6 +124,9 @@ navItems.forEach(item => {
     if (targetPage) targetPage.classList.add('active');
 
     if (pageTitle) pageTitle.textContent = pageTitles[target] || target;
+
+    // Ensure all data is rendered for the new page
+    renderApp();
 
     // Trigger chart redraws if navigating to those pages
     if (target === 'home' || target === 'summary') {
@@ -155,12 +166,12 @@ function renderDashboard() {
     dashBalance.setAttribute('data-amount', balance);
     dashBalance.textContent = state.hideBalance ? '****' : `${formatMoney(balance)}`;
     const toggleBtn = document.getElementById('toggleBalanceBtn');
-    if (toggleBtn) toggleBtn.textContent = state.hideBalance ? '👁‍🗨' : '👁';
+    if (toggleBtn) toggleBtn.innerHTML = state.hideBalance ? '<i class="las la-eye-slash"></i>' : '<i class="las la-eye"></i>';
   }
 
   // 2. Upcoming Cashflow (Income + Expenses)
   const today = new Date();
-  today.setHours(0,0,0,0);
+  today.setHours(0, 0, 0, 0);
   const nextWeek = new Date(today);
   nextWeek.setDate(today.getDate() + 7);
 
@@ -196,7 +207,7 @@ function renderDashboard() {
       allUpcoming.slice(0, 3).forEach(item => {
         const isInc = item.type === 'income';
         const dateStr = new Date(item.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-        
+
         dashUpcomingList.innerHTML += `
           <li class="upcoming-item ${item.type}">
             <div class="upcoming-item-left">
@@ -228,7 +239,7 @@ function renderDashboard() {
   // 4. Quick Stats (This Month)
   const currentMonth = today.getMonth();
   const currentYear = today.getFullYear();
-  
+
   const monthIncomes = state.incomes.filter(i => {
     const d = new Date(i.date);
     return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
@@ -254,22 +265,26 @@ function renderDashboard() {
   if (alertBanner) {
     const iconSpan = alertBanner.querySelector('.alert-icon');
     const textSpan = alertBanner.querySelectorAll('span')[1];
-    
+
     if (monthExpenses === 0 && monthIncomes === 0) {
       alertBanner.style.display = 'none';
     } else {
+      // Re-show the banner if there's data, unless it was just manually dismissed in this session
+      // For now, we'll always show it if the state justifies it
       alertBanner.style.display = 'flex';
-      const monthlyBurn = monthExpenses > 0 ? monthExpenses : 1; 
+      const monthlyBurn = monthExpenses > 0 ? monthExpenses : 1;
       const survivalMonths = Math.max(0, Math.floor(balance / monthlyBurn));
-      
+
       if (monthNet >= 0) {
-        alertBanner.className = 'alert-banner success';
-        iconSpan.textContent = '🌟';
-        textSpan.textContent = `Great job! Your income exceeds expenses. Your current balance can sustain you for ${survivalMonths} more months.`;
+        alertBanner.classList.remove('warning');
+        alertBanner.classList.add('success');
+        iconSpan.innerHTML = '<i class="las la-star"></i>';
+        textSpan.textContent = `Good moment! Your income exceeds expenses. Your current balance can sustain you for ${survivalMonths} more months.`;
       } else {
-        alertBanner.className = 'alert-banner warning';
-        iconSpan.textContent = '⚠';
-        textSpan.textContent = `Careful! You're spending more than you earn. Your current balance can sustain you for roughly ${survivalMonths} more months.`;
+        alertBanner.classList.remove('success');
+        alertBanner.classList.add('warning');
+        iconSpan.innerHTML = '<i class="las la-exclamation-triangle"></i>';
+        textSpan.textContent = `Risk moment! You're spending more than you earn. Your current balance can sustain you for roughly ${survivalMonths} more months.`;
       }
     }
   }
@@ -278,14 +293,14 @@ function renderDashboard() {
   const lastUpdEl = document.querySelector('.card--balance .card-sub');
   if (lastUpdEl) {
     const updDate = new Date(state.lastUpdated);
-    lastUpdEl.textContent = `Last updated: ${updDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
+    lastUpdEl.textContent = `Last updated: ${updDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
   }
 
   // 6. Mini Envelopes
   const dashEnvelopesList = document.getElementById('dashEnvelopesList');
   if (dashEnvelopesList) {
     dashEnvelopesList.innerHTML = '';
-    state.envelopes.slice(0,3).forEach(env => {
+    state.envelopes.slice(0, 3).forEach(env => {
       const pct = Math.min(100, Math.round((env.current / env.target) * 100));
       dashEnvelopesList.innerHTML += `
         <div class="envelope-mini">
@@ -305,7 +320,7 @@ function renderIncomes() {
   if (!tbody) return;
   tbody.innerHTML = '';
 
-  const sortedIncomes = [...state.incomes].sort((a,b) => new Date(b.date) - new Date(a.date));
+  const sortedIncomes = [...state.incomes].sort((a, b) => new Date(b.date) - new Date(a.date));
 
   sortedIncomes.forEach(inc => {
     const tr = document.createElement('tr');
@@ -315,7 +330,7 @@ function renderIncomes() {
       <td class="amount-cell income">${formatMoney(Number(inc.amount))}</td>
       <td>${escapeHtml(inc.notes) || '—'}</td>
       <td class="actions-cell">
-        <button class="action-btn del-btn" title="Delete" onclick="deleteIncome('${inc.id}')">✕</button>
+        <button class="action-btn del-btn" title="Delete" onclick="deleteIncome('${inc.id}')"><i class="las la-trash-alt"></i></button>
       </td>
     `;
     tbody.appendChild(tr);
@@ -327,17 +342,17 @@ function renderExpenses() {
   if (!list) return;
   list.innerHTML = '';
 
-  const sortedExpenses = [...state.expenses].sort((a,b) => new Date(a.date) - new Date(b.date));
+  const sortedExpenses = [...state.expenses].sort((a, b) => new Date(a.date) - new Date(b.date));
 
   sortedExpenses.forEach(exp => {
     const dotClass = exp.isPaid ? 'dot-green' : getDotClass(exp.date);
     const catText = exp.category + (exp.recurring ? ' · Recurring' : '');
     const dueDisplay = exp.isPaid ? 'Paid' : `Due ${formatDate(exp.date)}`;
-    
+
     const div = document.createElement('div');
     div.className = 'expense-item';
-    if(exp.isPaid) div.style.opacity = '0.6';
-    
+    if (exp.isPaid) div.style.opacity = '0.6';
+
     div.innerHTML = `
       <div class="expense-dot ${dotClass}"></div>
       <div class="expense-info">
@@ -349,8 +364,8 @@ function renderExpenses() {
         <span class="expense-due">${dueDisplay}</span>
       </div>
       <div class="actions-cell" style="margin-left: 10px;">
-        ${!exp.isPaid ? `<button class="action-btn edit-btn" title="Mark Paid" onclick="markExpensePaid('${exp.id}')">✓</button>` : ''}
-        <button class="action-btn del-btn" title="Delete" onclick="deleteExpense('${exp.id}')">✕</button>
+        ${!exp.isPaid ? `<button class="action-btn edit-btn" title="Mark Paid" onclick="markExpensePaid('${exp.id}')"><i class="las la-check-circle"></i></button>` : ''}
+        <button class="action-btn del-btn" title="Delete" onclick="deleteExpense('${exp.id}')"><i class="las la-trash-alt"></i></button>
       </div>
     `;
     list.appendChild(div);
@@ -377,7 +392,7 @@ function renderEnvelopes() {
       const diffTime = new Date() - reachedDate;
       const daysPassed = Math.floor(diffTime / (1000 * 60 * 60 * 24));
       const daysLeft = Math.max(0, 7 - daysPassed);
-      
+
       statusHtml = `<div class="envelope-pct" style="color:var(--green); font-weight: 500;">🎉 Goal Reached! Auto-withdraw in ${daysLeft} day(s)</div>`;
       actionButtonsHtml = `
         <button class="btn btn--sm btn--primary" style="background: var(--green); color: #000;" onclick="withdrawEnvelope('${env.id}')">Withdraw Now</button>
@@ -390,7 +405,7 @@ function renderEnvelopes() {
     }
 
     card.innerHTML = `
-      <div class="envelope-icon">${env.icon}</div>
+      <div class="envelope-icon">${getIconHtml(env.icon)}</div>
       <div class="envelope-name">${escapeHtml(env.name)}</div>
       <div class="envelope-amounts">
         <span class="env-saved">${formatMoney(Number(env.current))}</span>
@@ -430,7 +445,7 @@ function renderProfile() {
   // Profile Page Elements
   const profileAvatar = document.getElementById('profileAvatar');
   const profileDisplayName = document.getElementById('profileDisplayName');
-  
+
   // Greeting
   const greetingTime = document.getElementById('greetingTime');
   const greetingName = document.getElementById('greetingName');
@@ -439,11 +454,11 @@ function renderProfile() {
     let timeText = 'Good Evening,';
     if (hr < 12) timeText = 'Good Morning,';
     else if (hr < 18) timeText = 'Good Afternoon,';
-    
+
     greetingTime.textContent = timeText;
     greetingName.textContent = p.fullName || p.nickname || 'User';
   }
-  
+
   if (profileAvatar) {
     if (p.image) {
       profileAvatar.style.backgroundImage = `url(${p.image})`;
@@ -498,7 +513,7 @@ function addIncome() {
 }
 
 function deleteIncome(id) {
-  if(confirm('Delete this income?')) {
+  if (confirm('Delete this income?')) {
     state.incomes = state.incomes.filter(i => i.id !== id);
     saveState();
     showToast('Income deleted.', 'info');
@@ -543,7 +558,7 @@ function markExpensePaid(id) {
 }
 
 function deleteExpense(id) {
-  if(confirm('Delete this expense?')) {
+  if (confirm('Delete this expense?')) {
     state.expenses = state.expenses.filter(e => e.id !== id);
     saveState();
     showToast('Expense deleted.', 'info');
@@ -578,16 +593,16 @@ function createEnvelope() {
 function addFundsToEnvelope(id) {
   const env = state.envelopes.find(e => e.id === id);
   if (!env) return;
-  
+
   const amount = prompt(`How much to add to ${env.name} ($)?`);
   if (!amount || isNaN(amount) || Number(amount) <= 0) return;
 
   env.current += Number(amount);
-  
+
   if (env.current >= env.target && !env.goalReachedAt) {
     env.goalReachedAt = new Date().toISOString();
   }
-  
+
   saveState();
 
   if (env.current >= env.target) {
@@ -629,7 +644,7 @@ function checkAutoWithdrawals() {
       const reachedDate = new Date(env.goalReachedAt);
       const diffTime = new Date() - reachedDate;
       const daysPassed = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-      
+
       if (daysPassed >= 7) {
         const today = new Date().toISOString().split('T')[0];
         state.incomes.push({
@@ -660,7 +675,7 @@ function checkAutoWithdrawals() {
 }
 
 function deleteEnvelope(id) {
-  if(confirm('Delete this envelope?')) {
+  if (confirm('Delete this envelope?')) {
     state.envelopes = state.envelopes.filter(e => e.id !== id);
     saveState();
     showToast('Envelope deleted.', 'info');
@@ -679,7 +694,7 @@ function dismissAlert(btn) {
 
 function saveProfile() {
   if (!state.userProfile) state.userProfile = {};
-  
+
   state.userProfile.fullName = document.getElementById('profileFullName').value.trim();
   state.userProfile.nickname = document.getElementById('profileNickname').value.trim();
   state.userProfile.mobile = document.getElementById('profileMobile').value.trim();
@@ -687,7 +702,7 @@ function saveProfile() {
   state.userProfile.gender = document.getElementById('profileGender').value;
   state.userProfile.dob = document.getElementById('profileDob').value;
   state.userProfile.address = document.getElementById('profileAddress').value.trim();
-  
+
   saveState();
   showToast('Profile updated successfully!', 'success');
 }
@@ -709,27 +724,27 @@ function handleLogout() {
 
 function getPastWeeksData() {
   const today = new Date();
-  today.setHours(0,0,0,0);
+  today.setHours(0, 0, 0, 0);
   const data = [];
-  
+
   // Create 6 week buckets
-  for(let i=5; i>=0; i--) {
+  for (let i = 5; i >= 0; i--) {
     let weekStart = new Date(today);
     weekStart.setDate(today.getDate() - (i * 7) - today.getDay());
     let weekEnd = new Date(weekStart);
     weekEnd.setDate(weekStart.getDate() + 6);
-    
+
     let incSum = state.incomes.filter(inc => {
       let d = new Date(inc.date);
       return d >= weekStart && d <= weekEnd;
     }).reduce((sum, inc) => sum + Number(inc.amount), 0);
-    
+
     let expSum = state.expenses.filter(exp => {
       let d = new Date(exp.date);
       return exp.isPaid && d >= weekStart && d <= weekEnd;
     }).reduce((sum, exp) => sum + Number(exp.amount), 0);
-    
-    data.push({ label: `Wk ${6-i}`, income: incSum, expense: expSum });
+
+    data.push({ label: `Wk ${6 - i}`, income: incSum, expense: expSum });
   }
   return data;
 }
@@ -750,7 +765,7 @@ function drawDashChart() {
 
   // If all 0, provide dummy max
   let maxVal = Math.max(...income, ...expenses) * 1.15;
-  if(maxVal === 0) maxVal = 100000; 
+  if (maxVal === 0) maxVal = 100000;
 
   const padding = { top: 20, right: 20, bottom: 40, left: 60 };
   const chartW = W - padding.left - padding.right;
@@ -766,7 +781,7 @@ function drawDashChart() {
     ctx.beginPath(); ctx.moveTo(padding.left, y); ctx.lineTo(W - padding.right, y); ctx.stroke();
   }
 
-  ctx.fillStyle = '#d9d9d9';
+  ctx.fillStyle = '#6B7280';
   ctx.font = '11px DM Sans, sans-serif';
   ctx.textAlign = 'right';
   for (let i = 0; i <= 4; i++) {
@@ -789,7 +804,7 @@ function drawDashChart() {
     ctx.fillStyle = 'rgba(248, 113, 113, 0.7)';
     roundRect(ctx, startX + bW + 3, padding.top + chartH - expH, bW, expH, 3);
 
-    ctx.fillStyle = '#d9d9d9';
+    ctx.fillStyle = '#6B7280';
     ctx.font = '11px DM Sans, sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText(label, x + barWidth / 2, H - padding.bottom + 16);
@@ -807,34 +822,34 @@ function drawWeeklyChart() {
 
   // Real data for current week
   const today = new Date();
-  today.setHours(0,0,0,0);
+  today.setHours(0, 0, 0, 0);
   const dayOfWeek = today.getDay(); // 0 is Sunday
   const startOfWeek = new Date(today);
   startOfWeek.setDate(today.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1)); // Mon as start
 
   const labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-  const income = [0,0,0,0,0,0,0];
-  const expenses = [0,0,0,0,0,0,0];
+  const income = [0, 0, 0, 0, 0, 0, 0];
+  const expenses = [0, 0, 0, 0, 0, 0, 0];
 
   state.incomes.forEach(inc => {
     let d = new Date(inc.date);
-    if(d >= startOfWeek && d < new Date(startOfWeek.getTime() + 7*24*60*60*1000)) {
+    if (d >= startOfWeek && d < new Date(startOfWeek.getTime() + 7 * 24 * 60 * 60 * 1000)) {
       let idx = d.getDay() === 0 ? 6 : d.getDay() - 1;
       income[idx] += Number(inc.amount);
     }
   });
 
   state.expenses.forEach(exp => {
-    if(!exp.isPaid) return;
+    if (!exp.isPaid) return;
     let d = new Date(exp.date);
-    if(d >= startOfWeek && d < new Date(startOfWeek.getTime() + 7*24*60*60*1000)) {
+    if (d >= startOfWeek && d < new Date(startOfWeek.getTime() + 7 * 24 * 60 * 60 * 1000)) {
       let idx = d.getDay() === 0 ? 6 : d.getDay() - 1;
       expenses[idx] += Number(exp.amount);
     }
   });
 
   let maxVal = Math.max(...income, ...expenses) * 1.15;
-  if(maxVal === 0) maxVal = 100000;
+  if (maxVal === 0) maxVal = 100000;
 
   const padding = { top: 20, right: 20, bottom: 40, left: 60 };
   const chartW = W - padding.left - padding.right;
@@ -842,7 +857,7 @@ function drawWeeklyChart() {
   const barWidth = chartW / labels.length;
 
   ctx.clearRect(0, 0, W, H);
-  
+
   ctx.strokeStyle = 'rgba(255,255,255,0.05)';
   ctx.lineWidth = 1;
   for (let i = 0; i <= 4; i++) {
@@ -966,7 +981,7 @@ function showToast(message, type = 'info') {
   `;
 
   toast.innerHTML = `
-    <span style="color:${colors[type]};font-weight:700;">${icons[type]}</span>
+    <span style="color:${colors[type]};font-weight:700;">${getIconHtml(type)}</span>
     <span>${message}</span>
   `;
 
@@ -995,14 +1010,29 @@ function showToast(message, type = 'info') {
 // =============================================
 
 document.addEventListener('DOMContentLoaded', () => {
+  // 1. Load data
+  loadState();
+
+  // 2. Initialize settings fields (moved from redundant listener)
+  const themeSelect = document.getElementById('settingTheme');
+  const currencySelect = document.getElementById('settingCurrency');
+  if (themeSelect) themeSelect.value = state.settings?.theme || 'dark';
+  if (currencySelect) currencySelect.value = state.settings?.currency || '$';
+
+  // 3. Set default dates
   const today = new Date().toISOString().split('T')[0];
   const dateInputs = document.querySelectorAll('input[type="date"]');
   dateInputs.forEach(inp => { if (!inp.value) inp.value = today; });
 
-  document.getElementById('envelopeModal').addEventListener('click', (e) => {
-    if (e.target === document.getElementById('envelopeModal')) closeEnvelopeModal();
-  });
+  // 4. Modal listeners
+  const envModal = document.getElementById('envelopeModal');
+  if (envModal) {
+    envModal.addEventListener('click', (e) => {
+      if (e.target === envModal) closeEnvelopeModal();
+    });
+  }
 
+  // 5. Toggle Balance
   const toggleBtn = document.getElementById('toggleBalanceBtn');
   if (toggleBtn) {
     toggleBtn.addEventListener('click', () => {
@@ -1014,12 +1044,12 @@ document.addEventListener('DOMContentLoaded', () => {
   // Profile Image Upload Listener
   const profileImageInput = document.getElementById('profileImageInput');
   if (profileImageInput) {
-    profileImageInput.addEventListener('change', function(e) {
+    profileImageInput.addEventListener('change', function (e) {
       const file = e.target.files[0];
       if (!file) return;
-      
+
       const reader = new FileReader();
-      reader.onload = function(event) {
+      reader.onload = function (event) {
         if (!state.userProfile) state.userProfile = {};
         state.userProfile.image = event.target.result; // Base64 string
         saveState();
@@ -1035,15 +1065,14 @@ document.addEventListener('DOMContentLoaded', () => {
     resizeTimer = setTimeout(renderCharts, 150);
   });
 
-  loadState();
+  // 7. Initial Render
+  renderApp();
 
-  // Route Protection
+  // 8. Route Protection
   if (!state.userProfile || !state.userProfile.email) {
     window.location.href = 'auth.html';
     return;
   }
-
-  renderApp();
 });
 
 function renderCharts() {
@@ -1107,7 +1136,7 @@ function renderSummary() {
     summaryIncomeTrend.className = `card-sub ${incTrend.class}`;
   }
 
-  const expTrend = getTrendText(expLast7, expPrev7, true); 
+  const expTrend = getTrendText(expLast7, expPrev7, true);
   if (summaryExpenseTrend) {
     summaryExpenseTrend.textContent = expTrend.text;
     summaryExpenseTrend.className = `card-sub ${expTrend.class}`;
@@ -1132,13 +1161,13 @@ function renderSummary() {
   if (incLast7 > expLast7) {
     insightsHtml += `
       <li class="insight-item insight-good">
-        <span class="insight-icon">🌟</span>
+        <span class="insight-icon"><i class="las la-star"></i></span>
         You saved ${formatMoney(incLast7 - expLast7)} this week! Great job keeping expenses below income.
       </li>`;
   } else if (expLast7 > incLast7 && incLast7 > 0) {
     insightsHtml += `
       <li class="insight-item insight-warn">
-        <span class="insight-icon">⚠</span>
+        <span class="insight-icon"><i class="las la-exclamation-triangle"></i></span>
         You spent more than you earned this week. Consider reviewing your recent expenses.
       </li>`;
   }
@@ -1155,7 +1184,7 @@ function renderSummary() {
     const pct = Math.round((highestAmt / paidExpenses) * 100);
     insightsHtml += `
       <li class="insight-item insight-neutral">
-        <span class="insight-icon">📊</span>
+        <span class="insight-icon"><i class="las la-chart-bar"></i></span>
         <strong>${highestCat}</strong> is your top expense category, representing ${pct}% of your total spending.
       </li>`;
   }
@@ -1166,7 +1195,7 @@ function renderSummary() {
     const savedPct = Math.round((totalSaved / totalTarget) * 100);
     insightsHtml += `
       <li class="insight-item insight-good">
-        <span class="insight-icon">✓</span>
+        <span class="insight-icon"><i class="las la-check-circle"></i></span>
         You are ${savedPct}% toward your total savings goals across all envelopes.
       </li>`;
   }
@@ -1174,7 +1203,7 @@ function renderSummary() {
   if (!insightsHtml) {
     insightsHtml = `
       <li class="insight-item insight-neutral">
-        <span class="insight-icon">ℹ</span>
+        <span class="insight-icon"><i c lass="las la-info-circle"></i></span>
         Log more incomes and expenses to get personalized AI insights!
       </li>`;
   }
@@ -1191,7 +1220,7 @@ function renderSummary() {
 function updateSettings() {
   const themeSelect = document.getElementById('settingTheme');
   const currencySelect = document.getElementById('settingCurrency');
-  
+
   if (themeSelect && currencySelect) {
     state.settings.theme = themeSelect.value;
     state.settings.currency = currencySelect.value;
@@ -1201,11 +1230,4 @@ function updateSettings() {
   }
 }
 
-// Initialize settings fields
-document.addEventListener('DOMContentLoaded', () => {
-  const themeSelect = document.getElementById('settingTheme');
-  const currencySelect = document.getElementById('settingCurrency');
-  
-  if (themeSelect) themeSelect.value = state.settings?.theme || 'dark';
-  if (currencySelect) currencySelect.value = state.settings?.currency || '$';
-});
+// Initialization completed in unified DOMContentLoaded listener
