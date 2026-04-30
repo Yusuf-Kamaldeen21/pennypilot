@@ -71,14 +71,14 @@ function generateId() {
 
 function getIconHtml(icon) {
   const mapping = {
-    '🏦': 'la-university',
-    '🎯': 'la-bullseye',
-    '🏠': 'la-home',
-    '🚗': 'la-car',
-    '📱': 'la-mobile',
-    '💊': 'la-medkit',
-    '🎓': 'la-graduation-cap',
-    '💼': 'la-briefcase',
+    '': 'la-university',
+    '': 'la-bullseye',
+    '': 'la-home',
+    '': 'la-car',
+    '': 'la-mobile',
+    '': 'la-medkit',
+    '': 'la-graduation-cap',
+    '': 'la-briefcase',
     'star': 'la-star',
     'warning': 'la-exclamation-triangle',
     'info': 'la-info-circle',
