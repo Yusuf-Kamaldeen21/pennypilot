@@ -71,14 +71,14 @@ function generateId() {
 
 function getIconHtml(icon) {
   const mapping = {
-    '': 'la-university',
-    '': 'la-bullseye',
-    '': 'la-home',
-    '': 'la-car',
-    '': 'la-mobile',
-    '': 'la-medkit',
-    '': 'la-graduation-cap',
-    '': 'la-briefcase',
+    'bank': 'la-university',
+    'goal': 'la-bullseye',
+    'home': 'la-home',
+    'car': 'la-car',
+    'tech': 'la-mobile',
+    'health': 'la-medkit',
+    'education': 'la-graduation-cap',
+    'business': 'la-briefcase',
     'star': 'la-star',
     'warning': 'la-exclamation-triangle',
     'info': 'la-info-circle',
@@ -225,13 +225,13 @@ function renderDashboard() {
   const statusEl = document.getElementById('financialStatus');
   if (statusEl) {
     if (balance <= 0 || totalUpcoming > balance) {
-      statusEl.textContent = '● Risk';
+      statusEl.innerHTML = '<i class="las la-exclamation-circle"></i> Risk';
       statusEl.className = 'status-badge risk';
     } else if (totalUpcoming > balance * 0.5) {
-      statusEl.textContent = '● Warning';
+      statusEl.innerHTML = '<i class="las la-exclamation-triangle"></i> Warning';
       statusEl.className = 'status-badge warning';
     } else {
-      statusEl.textContent = '● Safe';
+      statusEl.innerHTML = '<i class="las la-check-circle"></i> Safe';
       statusEl.className = 'status-badge safe';
     }
   }
@@ -393,7 +393,7 @@ function renderEnvelopes() {
       const daysPassed = Math.floor(diffTime / (1000 * 60 * 60 * 24));
       const daysLeft = Math.max(0, 7 - daysPassed);
 
-      statusHtml = `<div class="envelope-pct" style="color:var(--green); font-weight: 500;">🎉 Goal Reached! Auto-withdraw in ${daysLeft} day(s)</div>`;
+      statusHtml = `<div class="envelope-pct" style="color:var(--green); font-weight: 500;"><i class="las la-trophy"></i> Goal Reached! Auto-withdraw in ${daysLeft} day(s)</div>`;
       actionButtonsHtml = `
         <button class="btn btn--sm btn--primary" style="background: var(--green); color: #000;" onclick="withdrawEnvelope('${env.id}')">Withdraw Now</button>
       `;
@@ -606,7 +606,7 @@ function addFundsToEnvelope(id) {
   saveState();
 
   if (env.current >= env.target) {
-    showToast('🎉 Savings goal reached! Withdrawal button activated.', 'success');
+    showToast('Savings goal reached! Withdrawal button activated.', 'success');
   } else {
     showToast(`Added ${formatMoney(amount)} to envelope.`, 'success');
   }
@@ -952,10 +952,10 @@ function showToast(message, type = 'info') {
   };
 
   const icons = {
-    success: '✓',
-    warning: '⚠',
-    error: '✕',
-    info: 'ℹ'
+    success: 'la-check-circle',
+    warning: 'la-exclamation-triangle',
+    error: 'la-exclamation-circle',
+    info: 'la-info-circle'
   };
 
   const toast = document.createElement('div');
@@ -1123,34 +1123,43 @@ function renderSummary() {
   });
 
   const getTrendText = (curr, prev, isInverted = false) => {
-    if (prev === 0) return { text: curr > 0 ? '↑ 100% vs last week' : '→ No change', class: curr > 0 ? (isInverted ? 'trend-down' : 'trend-up') : '' };
+    if (prev === 0) return {
+      text: curr > 0 ? '<i class="las la-arrow-up"></i> 100% vs last week' : '<i class="las la-minus"></i> No change',
+      class: curr > 0 ? (isInverted ? 'trend-down' : 'trend-up') : ''
+    };
     const pct = Math.round(((curr - prev) / prev) * 100);
-    if (pct > 0) return { text: `↑ ${pct}% vs last week`, class: isInverted ? 'trend-down' : 'trend-up' };
-    if (pct < 0) return { text: `↓ ${Math.abs(pct)}% vs last week`, class: isInverted ? 'trend-up' : 'trend-down' };
-    return { text: '→ 0% vs last week', class: '' };
+    if (pct > 0) return {
+      text: `<i class="las la-arrow-up"></i> ${pct}% vs last week`,
+      class: isInverted ? 'trend-down' : 'trend-up'
+    };
+    if (pct < 0) return {
+      text: `<i class="las la-arrow-down"></i> ${Math.abs(pct)}% vs last week`,
+      class: isInverted ? 'trend-up' : 'trend-down'
+    };
+    return { text: '<i class="las la-minus"></i> 0% vs last week', class: '' };
   };
 
   const incTrend = getTrendText(incLast7, incPrev7);
   if (summaryIncomeTrend) {
-    summaryIncomeTrend.textContent = incTrend.text;
+    summaryIncomeTrend.innerHTML = incTrend.text;
     summaryIncomeTrend.className = `card-sub ${incTrend.class}`;
   }
 
   const expTrend = getTrendText(expLast7, expPrev7, true);
   if (summaryExpenseTrend) {
-    summaryExpenseTrend.textContent = expTrend.text;
+    summaryExpenseTrend.innerHTML = expTrend.text;
     summaryExpenseTrend.className = `card-sub ${expTrend.class}`;
   }
 
   if (summaryNetTrend) {
     if (netBalance > 0) {
-      summaryNetTrend.textContent = '↑ Good standing';
+      summaryNetTrend.innerHTML = '<i class="las la-arrow-up"></i> Good standing';
       summaryNetTrend.className = 'card-sub trend-up';
     } else if (netBalance < 0) {
-      summaryNetTrend.textContent = '↓ Negative standing';
+      summaryNetTrend.innerHTML = '<i class="las la-arrow-down"></i> Negative standing';
       summaryNetTrend.className = 'card-sub trend-down';
     } else {
-      summaryNetTrend.textContent = '→ Break even';
+      summaryNetTrend.innerHTML = '<i class="las la-minus"></i> Break even';
       summaryNetTrend.className = 'card-sub';
     }
   }
