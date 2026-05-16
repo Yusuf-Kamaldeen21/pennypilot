@@ -375,10 +375,10 @@
       const email = document.getElementById('regEmail').value.trim();
       const password = document.getElementById('regPassword').value;
 
-      // Ensure minimal empty structures exist
-      if(!appState.incomes) appState.incomes = [];
-      if(!appState.expenses) appState.expenses = [];
-      if(!appState.envelopes) appState.envelopes = [];
+      // Reset financial data for new user
+      appState.incomes = [];
+      appState.expenses = [];
+      appState.envelopes = [];
       
       appState.userProfile = {
         fullName: document.getElementById('regFullName').value.trim(),

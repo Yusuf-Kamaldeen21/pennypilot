@@ -26,6 +26,9 @@ let state = {
     theme: 'dark',
     currency: '$'
   },
+  isPremium: false,
+  interactionCount: 0,
+  budgets: {},
   lastUpdated: new Date().toISOString()
 };
 
@@ -58,6 +61,9 @@ function loadState() {
       if (!state.settings) {
         state.settings = { theme: 'dark', currency: '$' };
       }
+      if (!state.budgets) state.budgets = {};
+      if (state.isPremium === undefined) state.isPremium = false;
+      if (state.interactionCount === undefined) state.interactionCount = 0;
     } catch (e) {
       console.error('Could not parse state from localStorage');
     }
@@ -152,6 +158,7 @@ function renderApp() {
   renderEnvelopes();
   renderProfile();
   renderSummary();
+  renderBudget();
   renderCharts();
 }
 
@@ -266,25 +273,30 @@ function renderDashboard() {
     const iconSpan = alertBanner.querySelector('.alert-icon');
     const textSpan = alertBanner.querySelectorAll('span')[1];
 
-    if (monthExpenses === 0 && monthIncomes === 0) {
+    // Only show the banner when both income and expenses exist this month
+    if (monthExpenses === 0 || monthIncomes === 0) {
       alertBanner.style.display = 'none';
     } else {
-      // Re-show the banner if there's data, unless it was just manually dismissed in this session
-      // For now, we'll always show it if the state justifies it
       alertBanner.style.display = 'flex';
-      const monthlyBurn = monthExpenses > 0 ? monthExpenses : 1;
-      const survivalMonths = Math.max(0, Math.floor(balance / monthlyBurn));
+
+      // Survival = how many months current balance can cover at this month's burn rate
+      const survivalMonths = Math.floor(balance / monthExpenses);
+      const survivalText = survivalMonths <= 0
+        ? 'your balance cannot cover another month at this rate'
+        : survivalMonths === 1
+          ? 'your balance can sustain you for roughly 1 more month'
+          : `your balance can sustain you for roughly ${survivalMonths} more months`;
 
       if (monthNet >= 0) {
         alertBanner.classList.remove('warning');
         alertBanner.classList.add('success');
         iconSpan.innerHTML = '<i class="las la-star"></i>';
-        textSpan.textContent = `Good moment! Your income exceeds expenses. Your current balance can sustain you for ${survivalMonths} more months.`;
+        textSpan.textContent = `Good moment! Your income exceeds expenses this month. At this rate, ${survivalText}.`;
       } else {
         alertBanner.classList.remove('success');
         alertBanner.classList.add('warning');
         iconSpan.innerHTML = '<i class="las la-exclamation-triangle"></i>';
-        textSpan.textContent = `Risk moment! You're spending more than you earn. Your current balance can sustain you for roughly ${survivalMonths} more months.`;
+        textSpan.textContent = `Risk moment! You're spending more than you earn this month. At this rate, ${survivalText}.`;
       }
     }
   }
@@ -717,6 +729,368 @@ function handleLogout() {
     window.location.href = 'auth.html';
   }
 }
+
+function showPremiumModal() {
+  state.lastUpgradePrompt = new Date().toISOString();
+  saveState();
+  const modal = document.getElementById('premiumModal');
+  if (modal) modal.classList.add('open');
+}
+
+function closePremiumModal() {
+  const modal = document.getElementById('premiumModal');
+  if (modal) modal.classList.remove('open');
+}
+
+function upgradeToPremium() {
+  state.isPremium = true;
+  saveState();
+  closePremiumModal();
+  showToast('Successfully upgraded to Premium!', 'success');
+  // Re-render to clear locked overlay
+  renderApp();
+}
+
+function incrementInteraction() {
+  if (state.isPremium) return;
+  state.interactionCount++;
+  if (state.interactionCount === 15) {
+    showPremiumModal();
+  }
+}
+
+// =============================================
+// BUDGET
+// =============================================
+
+const BUDGET_CATEGORY_ICONS = {
+  Housing: '🏠', Food: '🍔', Transport: '🚗', Utilities: '💡',
+  Subscriptions: '📺', Healthcare: '❤️', Education: '📚',
+  Entertainment: '🎬', Shopping: '🛍️', Savings: '💰', Other: '📌'
+};
+
+function renderBudget() {
+  const overlay = document.getElementById('budgetLockedOverlay');
+  if (overlay) overlay.style.display = state.isPremium ? 'none' : 'flex';
+  if (!state.isPremium) return;
+
+  // ── Live balance from dashboard ──────────────────────────────
+  const totalIncome = state.incomes.reduce((sum, i) => sum + Number(i.amount), 0);
+  const paidExpenses = state.expenses.filter(e => e.isPaid).reduce((sum, e) => sum + Number(e.amount), 0);
+  const liveBalance = totalIncome - paidExpenses;
+
+  // ── Populate month selector ──────────────────────────────────
+  const monthSelector = document.getElementById('budgetMonthSelector');
+  if (!monthSelector) return;
+  if (monthSelector.options.length === 0) {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const currentMonth = new Date().getMonth();
+    months.forEach((m, i) => {
+      monthSelector.innerHTML += `<option value="${i}" ${i === currentMonth ? 'selected' : ''}>${m} ${new Date().getFullYear()}</option>`;
+    });
+  }
+
+  const selectedMonth = parseInt(monthSelector.value);
+  const currentYear = new Date().getFullYear();
+
+  const monthlyExps = state.expenses.filter(e => {
+    const d = new Date(e.date);
+    return d.getMonth() === selectedMonth && d.getFullYear() === currentYear && e.isPaid;
+  });
+
+  const budgetKeys = Object.keys(state.budgets);
+  let totalPlanned = 0;
+  let totalSpent = 0;
+
+  const listEl = document.getElementById('budgetCategoryList');
+  const emptyEl = document.getElementById('budgetEmptyState');
+  const countEl = document.getElementById('budgetCategoryCount');
+  if (listEl) listEl.innerHTML = '';
+
+  if (budgetKeys.length === 0) {
+    if (emptyEl) emptyEl.style.display = 'block';
+    if (countEl) countEl.textContent = '0 budgets';
+    const emptyBalEl = document.getElementById('budgetEmptyBalance');
+    if (emptyBalEl) emptyBalEl.textContent = formatMoney(Math.max(0, liveBalance));
+  } else {
+    if (emptyEl) emptyEl.style.display = 'none';
+    if (countEl) countEl.textContent = `${budgetKeys.length} budget${budgetKeys.length === 1 ? '' : 's'}`;
+
+    budgetKeys.forEach(cat => {
+      const limit = state.budgets[cat] || 0;
+      const spent = monthlyExps
+        .filter(e => e.category === cat)
+        .reduce((sum, e) => sum + Number(e.amount), 0);
+
+      totalPlanned += limit;
+      totalSpent += spent;
+
+      const pct = limit > 0 ? Math.min(100, Math.round((spent / limit) * 100)) : (spent > 0 ? 100 : 0);
+      const isOver = spent > limit && limit > 0;
+      const catRemaining = limit - spent;
+      const icon = BUDGET_CATEGORY_ICONS[cat] || '📌';
+
+      // Colour thresholds
+      let statusColor = 'var(--green)';
+      let barColor = '';
+      let statusLabel = `${formatMoney(catRemaining)} left`;
+      if (isOver) {
+        statusColor = 'var(--red)';
+        barColor = 'background: var(--red);';
+        statusLabel = `${formatMoney(Math.abs(catRemaining))} over budget`;
+      } else if (pct >= 75) {
+        statusColor = 'var(--amber)';
+        barColor = 'background: var(--amber);';
+      }
+
+      // % of balance this budget represents
+      const ofBalance = liveBalance > 0 ? Math.round((limit / liveBalance) * 100) : 0;
+
+      if (listEl) {
+        listEl.innerHTML += `
+          <div style="padding: 14px 16px; border-bottom: 1px solid var(--border);">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <span style="font-size: 22px;">${icon}</span>
+                <div>
+                  <div style="font-size: 14px; font-weight: 600;">${cat}</div>
+                  <div style="font-size: 11px; color: ${statusColor}; margin-top: 1px;">${statusLabel}</div>
+                  <div style="font-size: 10px; color: var(--text-muted); margin-top: 1px;">${ofBalance}% of your balance</div>
+                </div>
+              </div>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <div style="text-align: right;">
+                  <div style="font-size: 14px; font-weight: 600; color: ${isOver ? 'var(--red)' : 'var(--text-primary)'};">${formatMoney(spent)}</div>
+                  <div style="font-size: 11px; color: var(--text-muted);">of ${formatMoney(limit)}</div>
+                </div>
+                <button class="btn btn--primary btn--sm" title="Record spending" onclick="openSpendingModal('${cat}')" style="padding: 5px 8px; font-size: 12px; gap: 3px;">
+                  <i class="las la-plus"></i> Spend
+                </button>
+                <button class="action-btn" title="Edit" onclick="openEditBudgetModal('${cat}')" style="color: var(--accent); font-size: 15px;">
+                  <i class="las la-pen"></i>
+                </button>
+                <button class="action-btn del-btn" title="Delete" onclick="deleteBudgetItem('${cat}')" style="font-size: 15px;">
+                  <i class="las la-trash-alt"></i>
+                </button>
+              </div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <div class="progress-bar" style="flex: 1;">
+                <div class="progress-fill" style="width: ${pct}%; ${barColor}"></div>
+              </div>
+              <span style="font-size: 11px; color: var(--text-muted); min-width: 32px; text-align: right;">${pct}%</span>
+            </div>
+          </div>
+        `;
+      }
+    });
+  }
+
+  // ── Balance overview card ────────────────────────────────────
+  const totalAllocated = totalPlanned; // sum of all budget limits
+  const unallocated = liveBalance - totalAllocated;
+  const allocPct = liveBalance > 0 ? Math.min(100, Math.round((totalAllocated / liveBalance) * 100)) : (totalAllocated > 0 ? 100 : 0);
+  const isOverAlloc = totalAllocated > liveBalance && liveBalance > 0;
+
+  const balanceDisplayEl = document.getElementById('budgetBalanceDisplay');
+  const unallocEl = document.getElementById('budgetUnallocated');
+  const unallocLabelEl = document.getElementById('budgetUnallocatedLabel');
+  const allocLabelEl = document.getElementById('budgetAllocLabel');
+  const allocPctEl = document.getElementById('budgetAllocPct');
+  const allocFillEl = document.getElementById('budgetAllocFill');
+  const overAllocWarn = document.getElementById('budgetOverAllocWarning');
+
+  if (balanceDisplayEl) balanceDisplayEl.textContent = formatMoney(liveBalance);
+  if (unallocEl) {
+    unallocEl.textContent = formatMoney(Math.abs(unallocated));
+    unallocEl.style.color = unallocated < 0 ? 'var(--red)' : 'var(--green)';
+  }
+  if (unallocLabelEl) {
+    unallocLabelEl.textContent = unallocated < 0 ? 'over-allocated!' : 'ready to assign';
+    unallocLabelEl.style.color = unallocated < 0 ? 'var(--red)' : 'var(--text-muted)';
+  }
+  if (allocLabelEl) allocLabelEl.textContent = `Budgeted: ${formatMoney(totalAllocated)}`;
+  if (allocPctEl) allocPctEl.textContent = `${allocPct}% of balance`;
+  if (allocFillEl) {
+    allocFillEl.style.width = `${allocPct}%`;
+    allocFillEl.style.background = isOverAlloc ? 'var(--red)' : allocPct >= 85 ? 'var(--amber)' : '';
+  }
+  if (overAllocWarn) overAllocWarn.style.display = isOverAlloc ? 'block' : 'none';
+
+  // ── Monthly summary row ──────────────────────────────────────
+  const remaining = totalPlanned - totalSpent;
+  const plannedEl = document.getElementById('budgetTotalPlanned');
+  const spentEl = document.getElementById('budgetTotalSpent');
+  const remainingEl = document.getElementById('budgetTotalRemaining');
+
+  if (plannedEl) plannedEl.textContent = formatMoney(totalPlanned);
+  if (spentEl) spentEl.textContent = formatMoney(totalSpent);
+  if (remainingEl) {
+    remainingEl.textContent = formatMoney(remaining);
+    remainingEl.style.color = remaining < 0 ? 'var(--red)' : 'var(--green)';
+  }
+
+  // ── Sync modal hints ─────────────────────────────────────────
+  _syncBudgetModalHints(liveBalance, totalAllocated);
+}
+
+function _syncBudgetModalHints(balance, allocated) {
+  const balVal = document.getElementById('budgetModalBalanceVal');
+  const unallocVal = document.getElementById('budgetModalUnallocVal');
+  const unallocHint = document.getElementById('budgetModalUnallocatedHint');
+  if (balVal) balVal.textContent = formatMoney(balance);
+  const ua = balance - allocated;
+  if (unallocVal) unallocVal.textContent = formatMoney(Math.abs(ua));
+  if (unallocHint) {
+    unallocHint.style.background = ua < 0 ? 'var(--red-bg)' : 'var(--green-bg)';
+    unallocHint.style.borderColor = ua < 0 ? 'rgba(248,113,113,0.2)' : 'rgba(74,222,128,0.2)';
+    unallocHint.style.color = ua < 0 ? 'var(--red)' : 'var(--green)';
+    unallocHint.querySelector('span').textContent = ua < 0 ? 'Over-allocated' : 'Unallocated';
+  }
+}
+
+function openAddBudgetModal() {
+  const titleEl = document.getElementById('budgetModalTitle');
+  const catSelect = document.getElementById('budgetCategorySelect');
+  const limitInput = document.getElementById('budgetLimitInput');
+  const editKey = document.getElementById('budgetEditKey');
+  if (titleEl) titleEl.textContent = 'Add Budget';
+  if (catSelect) { catSelect.value = ''; catSelect.disabled = false; }
+  if (limitInput) limitInput.value = '';
+  if (editKey) editKey.value = '';
+  // refresh modal balance hints
+  const liveBalance = state.incomes.reduce((s, i) => s + Number(i.amount), 0)
+    - state.expenses.filter(e => e.isPaid).reduce((s, e) => s + Number(e.amount), 0);
+  const totalAllocated = Object.values(state.budgets).reduce((s, v) => s + v, 0);
+  _syncBudgetModalHints(liveBalance, totalAllocated);
+  document.getElementById('editBudgetModal').classList.add('open');
+}
+
+function openEditBudgetModal(cat) {
+  const titleEl = document.getElementById('budgetModalTitle');
+  const catSelect = document.getElementById('budgetCategorySelect');
+  const limitInput = document.getElementById('budgetLimitInput');
+  const editKey = document.getElementById('budgetEditKey');
+  if (titleEl) titleEl.textContent = 'Edit Budget';
+  if (catSelect) { catSelect.value = cat; catSelect.disabled = true; }
+  if (limitInput) limitInput.value = state.budgets[cat] || '';
+  if (editKey) editKey.value = cat;
+  const liveBalance = state.incomes.reduce((s, i) => s + Number(i.amount), 0)
+    - state.expenses.filter(e => e.isPaid).reduce((s, e) => s + Number(e.amount), 0);
+  // when editing, exclude this cat's current allocation from "allocated"
+  const totalAllocated = Object.entries(state.budgets)
+    .filter(([k]) => k !== cat)
+    .reduce((s, [, v]) => s + v, 0);
+  _syncBudgetModalHints(liveBalance, totalAllocated);
+  document.getElementById('editBudgetModal').classList.add('open');
+}
+
+function closeBudgetModal() {
+  const modal = document.getElementById('editBudgetModal');
+  if (modal) modal.classList.remove('open');
+}
+
+function saveBudgetItem() {
+  const catSelect = document.getElementById('budgetCategorySelect');
+  const limitInput = document.getElementById('budgetLimitInput');
+  const editKey = document.getElementById('budgetEditKey');
+
+  const cat = editKey && editKey.value ? editKey.value : (catSelect ? catSelect.value : '');
+  const limit = limitInput ? Number(limitInput.value) : 0;
+
+  if (!cat) { showToast('Please select a category.', 'warning'); return; }
+  if (!limit || limit <= 0) { showToast('Please enter a valid limit amount.', 'warning'); return; }
+
+  state.budgets[cat] = limit;
+  saveState();
+  closeBudgetModal();
+  renderBudget();
+  showToast(`Budget for ${cat} saved!`, 'success');
+}
+
+function deleteBudgetItem(cat) {
+  if (!confirm(`Delete the "${cat}" budget?`)) return;
+  delete state.budgets[cat];
+  saveState();
+  renderBudget();
+  showToast(`${cat} budget deleted.`, 'info');
+}
+
+// ── Record Spending (Approve) ─────────────────────────────────
+
+function openSpendingModal(cat) {
+  const limit = state.budgets[cat] || 0;
+
+  // Calculate already-spent this month for this category
+  const now = new Date();
+  const selectedMonth = (() => {
+    const sel = document.getElementById('budgetMonthSelector');
+    return sel ? parseInt(sel.value) : now.getMonth();
+  })();
+  const spent = state.expenses.filter(e => {
+    const d = new Date(e.date);
+    return e.isPaid && e.category === cat
+      && d.getMonth() === selectedMonth
+      && d.getFullYear() === now.getFullYear();
+  }).reduce((s, e) => s + Number(e.amount), 0);
+
+  const catRemaining = limit - spent;
+
+  // Populate modal
+  const catLabel = document.getElementById('spendingCatLabel');
+  const remLabel = document.getElementById('spendingRemainingLabel');
+  const catKey   = document.getElementById('spendingCatKey');
+  const dateInp  = document.getElementById('spendingDateInput');
+  const amtInp   = document.getElementById('spendingAmountInput');
+  const descInp  = document.getElementById('spendingDescInput');
+  const icon = BUDGET_CATEGORY_ICONS[cat] || '📌';
+
+  if (catLabel) catLabel.textContent = `${icon}  ${cat}`;
+  if (remLabel) {
+    remLabel.textContent = formatMoney(catRemaining);
+    remLabel.style.color = catRemaining <= 0 ? 'var(--red)' : 'var(--green)';
+  }
+  if (catKey)  catKey.value  = cat;
+  if (dateInp) dateInp.value = now.toISOString().split('T')[0];
+  if (amtInp)  amtInp.value  = '';
+  if (descInp) descInp.value = '';
+
+  document.getElementById('recordSpendingModal').classList.add('open');
+}
+
+function closeSpendingModal() {
+  const modal = document.getElementById('recordSpendingModal');
+  if (modal) modal.classList.remove('open');
+}
+
+function approveSpending() {
+  const cat    = document.getElementById('spendingCatKey').value;
+  const amount = Number(document.getElementById('spendingAmountInput').value);
+  const desc   = document.getElementById('spendingDescInput').value.trim();
+  const date   = document.getElementById('spendingDateInput').value;
+
+  if (!cat)    { showToast('Category missing.', 'warning'); return; }
+  if (!amount || amount <= 0) { showToast('Please enter a valid amount.', 'warning'); return; }
+  if (!date)   { showToast('Please select a date.', 'warning'); return; }
+
+  // Save as a PAID expense so it counts toward budget spent
+  state.expenses.push({
+    id:        generateId(),
+    name:      desc || cat,
+    amount,
+    category:  cat,
+    date,
+    isPaid:    true,
+    recurring: false,
+    notes:     desc ? `Budget spend — ${desc}` : 'Budget spend'
+  });
+
+  saveState();
+  closeSpendingModal();
+  renderBudget();
+  showToast(`${formatMoney(amount)} recorded under ${cat}!`, 'success');
+}
+
 
 // =============================================
 // CHARTS

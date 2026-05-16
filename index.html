@@ -407,12 +407,180 @@
       </section>
 
       <!-- ========== PAGE: BUDGET ========== -->
-      <section class="page" id="page-budget">
-        <div class="card">
-          <div class="card-label">Budget Planner</div>
-          <p style="color: var(--text-secondary); font-size: 14px;">Budget planning features coming soon.</p>
+      <section class="page" id="page-budget" style="position: relative;">
+
+        <!-- Locked Overlay for Free Users -->
+        <div id="budgetLockedOverlay" class="locked-overlay" onclick="showPremiumModal()">
+          <div class="locked-content">
+            <i class="las la-lock" style="font-size: 48px; color: var(--accent); margin-bottom: 12px;"></i>
+            <h3>Premium Feature</h3>
+            <p style="color: var(--text-secondary); margin-top: 8px;">Upgrade to unlock the Budget Planner</p>
+            <button class="btn btn--primary" style="margin-top: 16px;">Unlock Now</button>
+          </div>
         </div>
+
+        <div id="budgetContent">
+
+          <!-- Balance Overview Card (linked to dashboard) -->
+          <div class="card card--balance" style="margin-bottom: 12px; padding: 16px;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+              <div>
+                <div class="card-label" style="margin-bottom: 4px;">Available Balance</div>
+                <div style="font-family: var(--font-display); font-size: 26px; font-weight: 700;" id="budgetBalanceDisplay">$ 0</div>
+                <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">from your dashboard</div>
+              </div>
+              <div style="text-align: right;">
+                <div class="card-label" style="margin-bottom: 4px;">Unallocated</div>
+                <div style="font-family: var(--font-display); font-size: 20px; font-weight: 700;" id="budgetUnallocated">$ 0</div>
+                <div style="font-size: 11px; margin-top: 2px;" id="budgetUnallocatedLabel">ready to assign</div>
+              </div>
+            </div>
+            <!-- Balance allocation bar -->
+            <div style="margin-bottom: 6px;">
+              <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--text-secondary); margin-bottom: 5px;">
+                <span id="budgetAllocLabel">Budgeted: $0</span>
+                <span id="budgetAllocPct">0% of balance</span>
+              </div>
+              <div class="progress-bar progress-bar--lg">
+                <div class="progress-fill" id="budgetAllocFill" style="width: 0%;"></div>
+              </div>
+            </div>
+            <div id="budgetOverAllocWarning" style="display: none; margin-top: 10px; padding: 8px 10px; background: var(--red-bg); border: 1px solid rgba(248,113,113,0.3); border-radius: 6px; font-size: 12px; color: var(--red);">
+              <i class="las la-exclamation-triangle"></i> Your total budget exceeds your current balance. Consider reducing some limits.
+            </div>
+          </div>
+
+          <!-- Month selector + Add -->
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <select id="budgetMonthSelector" onchange="renderBudget()"
+              style="padding: 4px 10px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--surface); color: var(--text-primary); font-size: 13px;">
+            </select>
+            <button class="btn btn--primary btn--sm" onclick="openAddBudgetModal()" style="gap: 5px;">
+              <i class="las la-plus"></i> Add Budget
+            </button>
+          </div>
+
+          <!-- Spent this month summary -->
+          <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+            <div class="card" style="flex: 1; padding: 10px 12px; margin-bottom: 0; text-align: center;">
+              <div class="card-label" style="margin-bottom: 3px; font-size: 10px;">Budgeted</div>
+              <div style="font-family: var(--font-display); font-size: 15px; font-weight: 700;" id="budgetTotalPlanned">$0</div>
+            </div>
+            <div class="card" style="flex: 1; padding: 10px 12px; margin-bottom: 0; text-align: center;">
+              <div class="card-label" style="margin-bottom: 3px; font-size: 10px;">Spent</div>
+              <div style="font-family: var(--font-display); font-size: 15px; font-weight: 700; color: var(--amber);" id="budgetTotalSpent">$0</div>
+            </div>
+            <div class="card" style="flex: 1; padding: 10px 12px; margin-bottom: 0; text-align: center;">
+              <div class="card-label" style="margin-bottom: 3px; font-size: 10px;">Left in Budgets</div>
+              <div style="font-family: var(--font-display); font-size: 15px; font-weight: 700; color: var(--green);" id="budgetTotalRemaining">$0</div>
+            </div>
+          </div>
+
+          <!-- Category Budget List -->
+          <div class="card" style="padding: 0; overflow: hidden;">
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--border);">
+              <div class="card-label" style="margin: 0;">Spending Budgets</div>
+              <span style="font-size: 11px; color: var(--text-muted);" id="budgetCategoryCount">0 budgets</span>
+            </div>
+            <div id="budgetCategoryList"></div>
+            <div id="budgetEmptyState" style="display: none; padding: 28px 16px; text-align: center;">
+              <i class="las la-wallet" style="font-size: 34px; color: var(--text-muted); margin-bottom: 8px; display: block;"></i>
+              <p style="color: var(--text-muted); font-size: 13px; line-height: 1.5;">No budgets yet.<br>Tap <strong>Add Budget</strong> to start allocating your <span id="budgetEmptyBalance">$ 0</span>.</p>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Add / Edit Budget Modal -->
+        <div class="modal-overlay" id="editBudgetModal">
+          <div class="modal">
+            <div class="modal-header">
+              <span class="card-label" id="budgetModalTitle">Add Budget</span>
+              <button class="modal-close" onclick="closeBudgetModal()">✕</button>
+            </div>
+            <!-- Balance hint inside modal -->
+            <div id="budgetModalBalanceHint" style="background: var(--accent-dim); border: 1px solid var(--accent-glow); border-radius: 8px; padding: 10px 12px; margin-bottom: 14px; font-size: 12px; color: var(--accent); display: flex; justify-content: space-between;">
+              <span>Your balance</span>
+              <strong id="budgetModalBalanceVal">$ 0</strong>
+            </div>
+            <div id="budgetModalUnallocatedHint" style="background: var(--green-bg); border: 1px solid rgba(74,222,128,0.2); border-radius: 8px; padding: 10px 12px; margin-bottom: 14px; font-size: 12px; color: var(--green); display: flex; justify-content: space-between;">
+              <span>Unallocated</span>
+              <strong id="budgetModalUnallocVal">$ 0</strong>
+            </div>
+            <form class="app-form" id="budgetForm" onsubmit="return false;" style="gap: 14px;">
+              <div class="form-group">
+                <label for="budgetCategorySelect">Category</label>
+                <select id="budgetCategorySelect">
+                  <option value="">— Select category —</option>
+                  <option value="Housing">🏠 Housing</option>
+                  <option value="Food">🍔 Food</option>
+                  <option value="Transport">🚗 Transport</option>
+                  <option value="Utilities">💡 Utilities</option>
+                  <option value="Subscriptions">📺 Subscriptions</option>
+                  <option value="Healthcare">❤️ Healthcare</option>
+                  <option value="Education">📚 Education</option>
+                  <option value="Entertainment">🎬 Entertainment</option>
+                  <option value="Shopping">🛍️ Shopping</option>
+                  <option value="Savings">💰 Savings</option>
+                  <option value="Other">📌 Other</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="budgetLimitInput">Monthly Limit</label>
+                <input type="number" id="budgetLimitInput" placeholder="e.g. 500" min="1" step="1">
+              </div>
+              <input type="hidden" id="budgetEditKey">
+            </form>
+            <div style="display: flex; gap: 10px; margin-top: 16px;">
+              <button type="button" class="btn btn--ghost" style="flex: 1;" onclick="closeBudgetModal()">Cancel</button>
+              <button type="button" class="btn btn--primary" style="flex: 1;" onclick="saveBudgetItem()">Save Budget</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Record Spending Modal -->
+        <div class="modal-overlay" id="recordSpendingModal">
+          <div class="modal">
+            <div class="modal-header">
+              <span class="card-label">Record Spending</span>
+              <button class="modal-close" onclick="closeSpendingModal()">✕</button>
+            </div>
+            <div id="spendingContextCard" style="background: var(--accent-dim); border: 1px solid var(--accent-glow); border-radius: 8px; padding: 10px 14px; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <div style="font-size: 11px; color: var(--text-muted);">Category</div>
+                <div style="font-size: 14px; font-weight: 600;" id="spendingCatLabel">—</div>
+              </div>
+              <div style="text-align: right;">
+                <div style="font-size: 11px; color: var(--text-muted);">Remaining Budget</div>
+                <div style="font-size: 14px; font-weight: 600; color: var(--green);" id="spendingRemainingLabel">$ 0</div>
+              </div>
+            </div>
+            <form class="app-form" onsubmit="return false;" style="gap: 14px;">
+              <div class="form-group">
+                <label for="spendingAmountInput">Amount Spent</label>
+                <input type="number" id="spendingAmountInput" placeholder="e.g. 120" min="0.01" step="0.01">
+              </div>
+              <div class="form-group">
+                <label for="spendingDescInput">Description (optional)</label>
+                <input type="text" id="spendingDescInput" placeholder="e.g. Electricity bill">
+              </div>
+              <div class="form-group">
+                <label for="spendingDateInput">Date</label>
+                <input type="date" id="spendingDateInput">
+              </div>
+              <input type="hidden" id="spendingCatKey">
+            </form>
+            <div style="display: flex; gap: 10px; margin-top: 16px;">
+              <button type="button" class="btn btn--ghost" style="flex: 1;" onclick="closeSpendingModal()">Cancel</button>
+              <button type="button" class="btn btn--primary" style="flex: 1;" onclick="approveSpending()">
+                <i class="las la-check"></i> Approve &amp; Record
+              </button>
+            </div>
+          </div>
+        </div>
+
       </section>
+
 
       <!-- ========== PAGE: SUPPORT ========== -->
       <section class="page" id="page-support">
@@ -545,6 +713,27 @@
         <span class="nav-label">Summary</span>
       </a>
     </nav>
+  </div>
+  <!-- Premium Upgrade Modal -->
+  <div class="modal-overlay" id="premiumModal">
+    <div class="modal premium-modal"
+      style="background: linear-gradient(to bottom, #1f1f2e, var(--surface)); border: 1px solid var(--accent); text-align: center; padding: 32px 24px;">
+      <div style="font-size: 48px; margin-bottom: 16px;">🚀</div>
+      <h2 style="margin-bottom: 12px; color: #fff;">Unlock Smarter Money Management</h2>
+      <p style="color: var(--text-secondary); font-size: 14px; margin-bottom: 24px; line-height: 1.5;">
+        You've mastered tracking your cash flow! Now, take total control of your finances. Upgrade to Premium to unlock
+        our powerful Budget Planner to set monthly limits, track category spending, and never overspend again.
+      </p>
+      <button class="btn btn--primary"
+        style="width: 100%; margin-bottom: 12px; justify-content: center; font-size: 16px; padding: 14px; background: linear-gradient(135deg, var(--accent), #d8b4fe);"
+        onclick="upgradeToPremium()">
+        Upgrade to Premium ($2/mo)
+      </button>
+      <button class="btn btn--ghost" style="width: 100%; justify-content: center; font-size: 14px;"
+        onclick="closePremiumModal()">
+        Maybe later
+      </button>
+    </div>
   </div>
 
   <script src="script.js"></script>
